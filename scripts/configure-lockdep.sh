@@ -29,8 +29,8 @@ cp "$BASE_CONFIG" .config
 ./scripts/config --disable CONFIG_ZFS || true
 
 # Workaround for Ubuntu 7.0.0-43 broken klp-checksum.c backport (LP: #2173273)
-./scripts/config --disable CONFIG_KLP_BUILD
-./scripts/config --disable CONFIG_LIVEPATCH
+sed -i '/klp-checksum\.o/d' tools/objtool/Build
+sed -i '/cmd_klp_checksum/d' tools/objtool/klp.c
 
 # Resolve any newly exposed sub-dependencies non-interactively
 make olddefconfig
