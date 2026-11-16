@@ -55,7 +55,7 @@ jobs:
       - name: Compile .deb packages
         working-directory: build/kernel-src
         run: |
-          make -j$(nproc) bindeb-pkg LOCALVERSION=-lockdep KDEB_PKGVERSION=$(make kernelversion)-resolute1
+          make -j$(nproc) bindeb-pkg LOCALVERSION=-lockdep KDEB_PKGVERSION=$(make kernelversion)-lockdep
 
       - name: Create Release and upload .deb packages
         uses: softprops/action-gh-release@v2
