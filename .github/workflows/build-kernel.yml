@@ -1,0 +1,67 @@
+name: Build Ubuntu 26.04 (Resolute) Lockdep Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_flavour:
+        description: 'Target kernel flavour config'
+        required: true
+        default: 'generic'
+        type: choice
+        options:
+          - generic
+          - lowlatency
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free up disk space on runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h
+
+      - name: Enable deb-src and install build dependencies
+        run: |
+          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential libncurses-dev bison flex libssl-dev libelf-dev \
+            bc dwarves zstd debhelper-compat rsync kmod cpio fakeroot llvm \
+            rustc rust-src bindgen rustfmt clippy \
+            linux-image-${{ inputs.kernel_flavour }}
+          sudo apt-get build-dep -y linux
+
+      - name: Download Ubuntu 26.04 kernel source
+        run: |
+          mkdir -p build && cd build
+          apt-get source linux
+          mv linux-7.* kernel-src || mv linux-* kernel-src
+
+      - name: Configure kernel with Lockdep
+        run: |
+          GENERIC_CONFIG=$(ls /boot/config-7.*-${{ inputs.kernel_flavour }} | head -n 1)
+          echo "Using base config: $GENERIC_CONFIG"
+          chmod +x scripts/configure-lockdep.sh
+          ./scripts/configure-lockdep.sh build/kernel-src "$GENERIC_CONFIG"
+
+      - name: Compile .deb packages
+        working-directory: build/kernel-src
+        run: |
+          make -j$(nproc) bindeb-pkg LOCALVERSION=-lockdep KDEB_PKGVERSION=$(make kernelversion)-resolute1
+
+      - name: Create Release and upload .deb packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: resolute-lockdep-${{ github.run_number }}
+          name: "Ubuntu 26.04 Resolute Lockdep Kernel #${{ github.run_number }}"
+          files: |
+            build/linux-image-*.deb
+            build/linux-headers-*.deb
