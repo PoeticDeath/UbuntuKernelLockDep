@@ -39,11 +39,11 @@ jobs:
             linux-image-${{ inputs.kernel_flavour }}
           sudo apt-get build-dep -y linux
 
-      - name: Download Ubuntu 26.04 kernel source
+      - name: Download clean upstream Linux 7.0 source
         run: |
           mkdir -p build && cd build
-          apt-get source linux
-          mv linux-7.* kernel-src || mv linux-* kernel-src
+          git clone --depth 1 --branch v7.0 git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git kernel-src
+
 
       - name: Configure kernel with Lockdep
         run: |
